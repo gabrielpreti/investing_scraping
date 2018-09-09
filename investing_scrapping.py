@@ -10,6 +10,7 @@ LOGGER_NAME = 'investing_scrapping'
 BASE_URL = "https://br.investing.com/equities"
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
 
+#################Logging configuration
 LOG_LEVEL = logging.INFO
 logger = logging.getLogger(LOGGER_NAME)
 logger.setLevel(LOG_LEVEL)
