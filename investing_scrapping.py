@@ -1,10 +1,11 @@
-import urllib3
 import re
 from lxml import html
 import json
 import unicodedata
+import time
 import sys
 import logging
+import datetime
 
 LOGGER_NAME = 'investing_scrapping'
 BASE_URL = "https://br.investing.com/equities"
@@ -32,7 +33,7 @@ def generate_html_tree(connectionpool, url, httpmethod='GET', headers={'User-Age
     return html.fromstring(normalize_and_encode(req.data.decode('utf-8')))
 
 
-####Geral/Informação
+####Geral/Informacao
 def parse_stock_general_information(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     general_information_data = {}
@@ -67,7 +68,7 @@ def parse_stock_general_information(connectionpool, stock):
     return general_profile_data
 
 
-####Finanças/Finanças
+####Financas/Financas
 def parse_stock_finance_finance(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_finance_data = {}
@@ -100,7 +101,7 @@ def parse_stock_finance_finance(connectionpool, stock):
     return finance_finance_data
 
 
-####Finanças/Demonstrações
+####Financas/Demonstracoes
 def finance_demonstrations(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_demonstrations_data = {}
@@ -119,7 +120,7 @@ def finance_demonstrations(connectionpool, stock):
     return finance_demonstrations_data
 
 
-####Finanças/Balanço Patrimonial
+####Financas/Balanco Patrimonial
 def finance_balances(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_balances_data = {}
@@ -139,7 +140,7 @@ def finance_balances(connectionpool, stock):
     return finance_balances_data
 
 
-####Finanças/Fluxo de Caixa
+####Financas/Fluxo de Caixa
 def finance_cash_flow(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_cashflow_data = {}
@@ -158,7 +159,7 @@ def finance_cash_flow(connectionpool, stock):
     return finance_cashflow_data
 
 
-####Finanças/Indicadores
+####Financas/Indicadores
 def finance_indicators(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_indicators_data = {}
@@ -175,7 +176,7 @@ def finance_indicators(connectionpool, stock):
     return finance_indicators_data
 
 
-####Finanças/Lucros
+####Financas/Lucros
 def finance_profits(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     finance_profits_data = {}
@@ -186,14 +187,14 @@ def finance_profits(connectionpool, stock):
     for history in earningshistory:
         exercise_date = history.getchildren()[1].text_content().strip()
         finance_profits_data[exercise_date] = {}
-        LOG.debug("Exercício=" + exercise_date)
+        LOG.debug("Exercicio=" + exercise_date)
         for c, h in zip(columns, history.getchildren()):
             value = h.text_content().replace("/", "").strip() if h.text_content().startswith("/") else h.text_content().strip()
             finance_profits_data[exercise_date][c] = value
             LOG.debug("\t%s=%s" % (c, value))
     return finance_profits_data
 
-####Técnica/Análise Técnica
+####Tecnica/Analise Tecnica
 def technical_technical_analysis(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     technical_analysis_data = {}
@@ -204,7 +205,7 @@ def technical_technical_analysis(connectionpool, stock):
         period_name = period[0]
         technical_analysis_data[period_name] = {}
         LOG.debug(period_name)
-        html_tree = generate_html_tree(connectionpool=http_connection_pool, httpmethod='POST',
+        html_tree = generate_html_tree(connectionpool=connectionpool, httpmethod='POST',
                                        url='https://br.investing.com/instruments/Service/GetTechincalData',
                                        headers={'User-Agent': USER_AGENT, 'X-Requested-With': 'XMLHttpRequest'},
                                        fields={'pairID': period[1], 'period': period[2]})
@@ -246,64 +247,64 @@ def technical_technical_analysis(connectionpool, stock):
                 technical_analysis_data[period_name]['Pontos de Pivot'][indicator_name][h]=i.text_content().strip()
                 LOG.debug("\t\t\t%s=%s" % (h, i.text_content()))
 
-        technical_analysis_data[period_name]['Indicadores Técnicos']={}
-        LOG.debug("\tIndicadores Técnicos")
+        technical_analysis_data[period_name]['Indicadores Tecnicos']={}
+        LOG.debug("\tIndicadores Tecnicos")
         tech_indicators_table = html_tree.xpath('//table[@id="curr_table"]')[1]
         headers = [x.text_content().strip() for x in tech_indicators_table.xpath('thead/tr/th')[1:]]
         tech_indicators = tech_indicators_table.xpath('tbody/tr')
         for indicator in tech_indicators[:-1]:
             indicator_name = indicator.getchildren()[0].text_content()
-            technical_analysis_data[period_name]['Indicadores Técnicos'][indicator_name]={}
+            technical_analysis_data[period_name]['Indicadores Tecnicos'][indicator_name]={}
             LOG.debug("\t\t%s" % (indicator_name))
             for h, i in zip(headers, indicator.getchildren()[1:]):
-                technical_analysis_data[period_name]['Indicadores Técnicos'][indicator_name][h]=i.text_content().strip()
+                technical_analysis_data[period_name]['Indicadores Tecnicos'][indicator_name][h]=i.text_content().strip()
                 LOG.debug("\t\t\t%s=%s" % (h, i.text_content().strip()))
-        technical_analysis_data[period_name]['Indicadores Técnicos']['Total'] = {}
+        technical_analysis_data[period_name]['Indicadores Tecnicos']['Total'] = {}
         LOG.debug("\t\tTotal")
         for p in tech_indicators_table.xpath('tbody/tr[last()]/td/p')[:-1]:
             p_children = p.getchildren()
             x, y = p_children[0].text_content().strip().replace(':', ''), p_children[1].text_content().strip()
-            technical_analysis_data[period_name]['Indicadores Técnicos']['Total'][x]=y
+            technical_analysis_data[period_name]['Indicadores Tecnicos']['Total'][x]=y
             LOG.debug("\t\t\t%s=%s" % (x, y))
         x = tech_indicators_table.xpath('tbody/tr[last()]/td/p[last()]/span')[0].text_content().strip()
-        technical_analysis_data[period_name]['Indicadores Técnicos']['Total']['Resumo']=x
+        technical_analysis_data[period_name]['Indicadores Tecnicos']['Total']['Resumo']=x
         LOG.debug("\t\t\tResumo=%s" % (x))
 
-        technical_analysis_data[period_name]['Médias Móveis'] = {}
-        LOG.debug("\tMédias Móveis")
+        technical_analysis_data[period_name]['Medias Moveis'] = {}
+        LOG.debug("\tMedias Moveis")
         moving_avg_table = html_tree.xpath('//table[@id="curr_table"]')[2]
         headers = [x.text_content().strip() for x in moving_avg_table.xpath('thead/tr/th')[1:]]
         moving_avgs = moving_avg_table.xpath('tbody/tr')
         for mavg in moving_avgs[:-1]:
             mavgname = mavg.getchildren()[0].text_content().strip()
-            technical_analysis_data[period_name]['Médias Móveis'][mavgname]={}
+            technical_analysis_data[period_name]['Medias Moveis'][mavgname]={}
             LOG.debug("\t\t%s" % (mavgname))
             for h, v in zip(headers, mavg.getchildren()[1:]):
-                technical_analysis_data[period_name]['Médias Móveis'][mavgname][h]={}
+                technical_analysis_data[period_name]['Medias Moveis'][mavgname][h]={}
                 LOG.debug("\t\t\t%s" % (h))
 
                 value = v.xpath('span/..')[0].text.strip()
-                technical_analysis_data[period_name]['Médias Móveis'][mavgname][h]['Valor']=value
+                technical_analysis_data[period_name]['Medias Moveis'][mavgname][h]['Valor']=value
                 LOG.debug("\t\t\t\tValor=%s" % (value))
 
                 action = v.xpath('span')[0].text.strip()
-                technical_analysis_data[period_name]['Médias Móveis'][mavgname][h][
-                    'Ação'] = action
-                LOG.debug("\t\t\t\tAção=%s" % (action))
-        technical_analysis_data[period_name]['Médias Móveis']['Total']={}
+                technical_analysis_data[period_name]['Medias Moveis'][mavgname][h][
+                    'Acao'] = action
+                LOG.debug("\t\t\t\tAcao=%s" % (action))
+        technical_analysis_data[period_name]['Medias Moveis']['Total']={}
         LOG.debug("\t\tTotal")
         for p in moving_avg_table.xpath('tbody/tr[last()]/td/p')[:-1]:
             p_children = p.getchildren()
             x, y = (p_children[0].text_content().strip().replace(':', ''), p_children[1].text_content().strip())
-            technical_analysis_data[period_name]['Médias Móveis']['Total'][x]=y
+            technical_analysis_data[period_name]['Medias Moveis']['Total'][x]=y
             LOG.debug("\t\t\t%s=%s" % (x, y))
         y = tech_indicators_table.xpath('tbody/tr[last()]/td/p[last()]/span')[0].text_content().strip()
-        technical_analysis_data[period_name]['Médias Móveis']['Total']['Resumo']=y
+        technical_analysis_data[period_name]['Medias Moveis']['Total']['Resumo']=y
         LOG.debug("\t\t\tResumo=%s" % (y))
 
     return technical_analysis_data
 
-####Técnica/Padrão de Candlestick
+####Tecnica/Padrao de Candlestick
 def technical_candlestick_pattern(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     tecnical_candlestick_pattern_data = {'Candlestick Patterns': {}}
@@ -341,7 +342,7 @@ def technical_candlestick_pattern(connectionpool, stock):
         LOG.debug("\t%s=%s" % (x, y))
     return tecnical_candlestick_pattern_data
 
-####Técnica/Estimativas Consensuais
+####Tecnica/Estimativas Consensuais
 def consensual_estimates(connectionpool, stock):
     LOG = logging.getLogger(LOGGER_NAME)
     consensual_estimates_data = {}
@@ -381,18 +382,10 @@ def get_stock_info_json(connectionpool, stock):
     for k in infos.keys():
         info = __get_info(k, infos[k], connectionpool, stock)
         stock_info[info[0]] = info[1]
+
+    stock_info['datetime'] = str(datetime.datetime.now())
     return json.dumps(stock_info)
 
 
-LOG = logging.getLogger(LOGGER_NAME)
-http_connection_pool = urllib3.PoolManager()
 
-req = http_connection_pool.request(method='GET', url='https://br.investing.com/equities/StocksFilter', headers={'User-Agent': USER_AGENT})
-html_tree = html.fromstring(req.data.decode('utf-8'))
-
-stock_links_list = html_tree.xpath("//table[@id='cross_rate_markets_stocks_1']/tbody/tr/td[2]/a")
-for stock_link in stock_links_list:
-    stock = stock_link.get('href').split('/')[-1]
-    LOG.info("Processing stock %s", stock)
-    print(get_stock_info_json(http_connection_pool, stock))
 
