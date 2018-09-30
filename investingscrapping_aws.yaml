@@ -1,0 +1,349 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Investing Scrapping"
+Parameters:
+  VpcCIDR:
+    Description: "Please enter the IP range (CIDR notation) for this VPC"
+    Type: String
+    Default: 10.192.0.0/16
+
+  Subnet1CIDR:
+    Description: "Please enter the IP range (CIDR notation) for this Subnet"
+    Type: String
+    Default: 10.192.10.0/24
+
+  ProjectName:
+      Description: "Please enter the name of the project"
+      Type: String
+      Default: "Test Project"
+
+  MyIp:
+    Description: "Please enter your IP"
+    Type: String
+    Default: 177.102.85.250
+
+  EC2KeyName:
+    Description: "Key Name to access the EC2 instance"
+    Type: String
+    Default: pytradejobs
+
+  ImageId:
+    Description: "Please informe the id to the AMI image to be used by the EC2 instance"
+    Type: String
+    Default: ami-0ab3c2ffcf795a8a9
+
+  Ec2InstanceType:
+    Description: "EC2 instance type"
+    Type: String
+    Default: "t1.micro"
+
+
+  NeedsEBSVolume:
+    Description: "Does the EC2 instance needs an EBS Volume?"
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+
+  EBSVolumeId:
+    Description: "Id of pre-existent EBS Volume"
+    Default: ""
+    Type: "String"
+
+  EC2MarketType:
+    Description: "Utilizar spot instances ou on-demand"
+    Type: String
+    AllowedValues: ["Spot", "On-demand"]
+    Default: "Spot"
+
+Conditions:
+  ShouldUseEBSVolume: !Equals [!Ref NeedsEBSVolume, "true"]
+  ShouldCreateNewEBSVolume: !And
+    - !Equals [!Ref EBSVolumeId, ""]
+    - !Equals [!Ref NeedsEBSVolume, "true"]
+  UseSpotInstance: !Equals [!Ref EC2MarketType, "Spot"]
+  UseOnDemandInstance: !Equals [!Ref EC2MarketType, "On-demand"]
+
+Resources:
+  VPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: !Ref VpcCIDR
+        Tags:
+          - Key: Project
+            Value: !Ref ProjectName
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IGWAT:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+
+  RouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPC
+        Tags:
+          - Key: Project
+            Value: !Ref ProjectName
+
+  IGWRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref RouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref IGW
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref Subnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  Subnet1NaclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      NetworkAclId: !Ref Nacl
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        SubnetId: !Ref Subnet1
+        RouteTableId: !Ref RouteTable
+
+  Nacl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NaclSshEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 100
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '22'
+        To: '22'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclEphemeralEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 101
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: true
+      PortRange:
+        From: '1024'
+        To: '65535'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclEphemeralIngressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 102
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: false
+      PortRange:
+        From: '1024'
+        To: '65535'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclHttpEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 103
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      PortRange:
+        From: 80
+        To: 80
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclHttpsEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 104
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      PortRange:
+        From: 443
+        To: 443
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclDockerDaemonEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 105
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '2375'
+        To: '2375'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclMongoEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 106
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '27017'
+        To: '27017'
+      Protocol: 6
+      RuleAction: "allow"
+
+  SshAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+
+  DockerDaemonAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 2375
+        ToPort: 2375
+        CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+
+  MongoAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 27017
+        ToPort: 27017
+        CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+
+######EC2 on-demand instance
+  EC2OnDemandInstance:
+    Type: AWS::EC2::Instance
+    Condition: UseOnDemandInstance
+    Properties:
+      InstanceType: !Ref Ec2InstanceType
+      SecurityGroupIds:
+        - !Ref SshAccessSecurityGroup
+        - !Ref DockerDaemonAccessSecurityGroup
+        - !Ref MongoAccessSecurityGroup
+      KeyName: !Ref EC2KeyName
+      ImageId: !Ref ImageId
+      SubnetId: !Ref Subnet1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo "testing cloud init"
+          if [ "${NeedsEBSVolume}" = "true" ];
+          then
+            if [ ! "${EBSVolumeId}" ];
+            then
+              mkfs -t ext4 /dev/sdh
+            fi
+            mkdir /mnt/ebs_data
+            mount /dev/sdh /mnt/ebs_data/
+          fi
+
+######EC2 spot instance
+  EC2SpotInstance:
+    Type: AWS::EC2::Instance
+    Condition: UseSpotInstance
+    DependsOn:
+    - EC2LaunchTemplate
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: 1
+      SecurityGroupIds:
+      - !Ref SshAccessSecurityGroup
+      - !Ref DockerDaemonAccessSecurityGroup
+      - !Ref MongoAccessSecurityGroup
+      SubnetId: !Ref Subnet1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo "testing cloud init"
+          if [ "${NeedsEBSVolume}" = "true" ];
+          then
+            if [ ! "${EBSVolumeId}" ];
+            then
+              mkfs -t ext4 /dev/sdh
+            fi
+            mkdir /mnt/ebs_data
+            mount /dev/sdh /mnt/ebs_data/
+          fi
+
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Condition: UseSpotInstance
+    DependsOn:
+    - Subnet1
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref ImageId
+        InstanceMarketOptions:
+          MarketType: spot
+        InstanceType: !Ref Ec2InstanceType
+        KeyName: !Ref EC2KeyName
+
+
+  EBSVolume:
+    Type: AWS::EC2::Volume
+    Condition: ShouldCreateNewEBSVolume
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Encrypted: false
+      Size: 2
+
+  MountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: ShouldUseEBSVolume
+    Properties:
+      InstanceId: !If [UseSpotInstance, !Ref EC2SpotInstance, !Ref EC2OnDemandInstance]
+      VolumeId:
+        !If [ShouldCreateNewEBSVolume, !Ref EBSVolume, !Ref EBSVolumeId]
+      Device: "/dev/sdh"
+
+Outputs:
+
+  Ec2InstancePublicIp:
+    Description: "Public IP address of the EC2 instance created"
+    Value: !If [UseSpotInstance, !GetAtt EC2SpotInstance.PublicIp, !GetAtt EC2OnDemandInstance.PublicIp]
