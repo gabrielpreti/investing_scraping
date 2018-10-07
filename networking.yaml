@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Networking infra for investing scrapping"
+
+Parameters:
+  VpcCIDR:
+    Description: "Please enter the IP range (CIDR notation) for this VPC"
+    Type: String
+    Default: 10.192.0.0/16
+
+  SubnetCIDR:
+    Description: "Please enter the IP range (CIDR notation) for this Subnet"
+    Type: String
+    Default: 10.192.90.0/28
+
+  MyIp:
+    Description: "Please enter your IP"
+    Type: String
+    Default: 177.102.85.250
+
+  EC2KeyName:
+    Description: "Key Name to access the EC2 instance"
+    Type: String
+    Default: pytradejobs
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+
+  IGWAT:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  IGWRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref SubnetCIDR
+      MapPublicIpOnLaunch: true
+
+  SubnetNaclAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId: !Ref Subnet
+      NetworkAclId: !Ref Nacl
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+
+  Nacl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref VPC
+
+  NaclSshEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 100
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '22'
+        To: '22'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclEphemeralEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 101
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: true
+      PortRange:
+        From: '1024'
+        To: '65535'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclEphemeralIngressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 102
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: false
+      PortRange:
+        From: '1024'
+        To: '65535'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclHttpEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 103
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      PortRange:
+        From: 80
+        To: 80
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclHttpsEgressRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 104
+      NetworkAclId: !Ref Nacl
+      CidrBlock: "0.0.0.0/0"
+      Egress: true
+      PortRange:
+        From: 443
+        To: 443
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclDockerDaemonEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 105
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '2375'
+        To: '2375'
+      Protocol: 6
+      RuleAction: "allow"
+
+  NaclMongoEntryRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      RuleNumber: 106
+      NetworkAclId: !Ref Nacl
+      CidrBlock: !Join ["/", [!Ref MyIp, "32"]]
+      Egress: false
+      PortRange:
+        From: '27017'
+        To: '27017'
+      Protocol: 6
+      RuleAction: "allow"
+
+
+  SshAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+      - IpProtocol: "tcp"
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref SubnetCIDR
+
+  DockerDaemonAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 2375
+        ToPort: 2375
+        CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+      - IpProtocol: "tcp"
+        FromPort: 2375
+        ToPort: 2375
+        CidrIp: !Ref SubnetCIDR
+
+  MongoAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "Enable ssh access via port 22"
+      SecurityGroupIngress:
+      - IpProtocol: "tcp"
+        FromPort: 27017
+        ToPort: 27017
+        CidrIp: !Join ["/", [!Ref MyIp, "32"]]
+      - IpProtocol: "tcp"
+        FromPort: 27017
+        ToPort: 27017
+        CidrIp: !Ref SubnetCIDR
+
+
+Outputs:
+  VPCId:
+    Description: "VPC id"
+    Value: !Ref VPC
+
+  IGWId:
+    Description: "Internet Gateway id"
+    Value: !Ref IGW
+
+  RouteTableId:
+    Description: "Route Table id"
+    Value: !Ref RouteTable
+
+  Subnet:
+    Description: "Subnet id"
+    Value: !Ref Subnet
+
+  Nacl:
+    Description: "NACL id"
+    Value: !Ref Nacl
+
+  SshAccessSecurityGroup:
+    Description: "Allow SSH access security group id"
+    Value: !Ref SshAccessSecurityGroup
+
+  DockerDaemonAccessSecurityGroup:
+    Description: "Allow docker daemon access security group id"
+    Value: !Ref DockerDaemonAccessSecurityGroup
+
+  MongoAccessSecurityGroup:
+    Description: "Allow MongoDB access security group id"
+    Value: !Ref MongoAccessSecurityGroup

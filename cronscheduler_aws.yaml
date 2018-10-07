@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Machine for cron scheduling"
+Parameters:
+  Subnet:
+    Description: "Subnet ID"
+    Type: AWS::EC2::Subnet::Id
+
+  SshAccessSecurityGroup:
+    Description: "Subgroup id for ssh access"
+    Type: AWS::EC2::SecurityGroup::Id
+
+  EC2KeyName:
+    Description: "Key Name to access the EC2 instance"
+    Type: String
+    Default: pytradejobs
+
+  ImageId:
+    Description: "Please informe the id to the AMI image to be used by the EC2 instance"
+    Type: String
+    Default: ami-0ab3c2ffcf795a8a9
+
+Resources:
+
+  EC2OnDemandInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: "t2.nano"
+      SecurityGroupIds:
+      - !Ref SshAccessSecurityGroup
+      KeyName: !Ref EC2KeyName
+      ImageId: !Ref ImageId
+      SubnetId: !Ref Subnet
+
+Outputs:
+  Ec2InstancePublicIp:
+    Description: "Public IP address of the EC2 instance created"
+    Value: !GetAtt EC2OnDemandInstance.PublicIp
+

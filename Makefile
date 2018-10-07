@@ -12,6 +12,7 @@ ifeq ($(MONGO_DATA_DIR),)
 endif
 
 AWS_INSTANCE_IP := `aws cloudformation  describe-stacks --stack-name=${STACK_NAME} --query "Stacks[0].Outputs[?OutputKey=='Ec2InstancePublicIp'].OutputValue" --output text`
+#AWS_INSTANCE_IP := `aws cloudformation  describe-stacks --stack-name=${STACK_NAME} --query "Stacks[0].Outputs[?OutputKey=='Ec2InstancePrivateIp'].OutputValue" --output text`
 DOCKER_HOST := 'tcp://localhost:2375'
 
 configure-docker-to-aws-istance:
@@ -97,7 +98,7 @@ ssh-mongo-aws: configure-docker-to-aws-istance ssh-mongo
 
 
 create-aws-stack:
-	aws cloudformation create-stack --stack-name=${STACK_NAME} --template-body=file://./investingscrapping_aws.yaml --parameters ParameterKey=MyIp,ParameterValue=${MY_IP} ParameterKey=ProjectName,ParameterValue='Investing Scrapping' ParameterKey=NeedsEBSVolume,ParameterValue=true ParameterKey=EC2MarketType,ParameterValue='On-demand' ParameterKey=VpcCIDR,ParameterValue=10.193.0.0/16 ParameterKey=Subnet1CIDR,ParameterValue=10.193.10.0/24 ParameterKey=EC2KeyName,ParameterValue=pytradejobs ParameterKey=EBSVolumeId,ParameterValue='vol-0720dcb52f88d1c3e'
+	aws cloudformation create-stack --stack-name=${STACK_NAME} --template-body=file://./investingscrapping_aws.yaml --parameters ParameterKey=ProjectName,ParameterValue='Investing Scrapping' ParameterKey=NeedsEBSVolume,ParameterValue=true ParameterKey=EC2MarketType,ParameterValue='On-demand' ParameterKey=EC2KeyName,ParameterValue=pytradejobs ParameterKey=EBSVolumeId,ParameterValue='vol-0720dcb52f88d1c3e'  ParameterKey=Subnet,ParameterValue='subnet-02990d206a07321c8'  ParameterKey=SshAccessSecurityGroup,ParameterValue='sg-0d71b453efafcfcae'  ParameterKey=DockerDaemonAccessSecurityGroup,ParameterValue='sg-0b4d956f3b80c1362'  ParameterKey=MongoAccessSecurityGroup,ParameterValue='sg-0d028f9c38955e9e0'
 
 wait-aws-stack-creation:
 	set -e ;\
@@ -126,4 +127,4 @@ delete-aws-stack:
 sleep:
 	sleep 30s
 
-create-aws-stack-and-run: create-aws-stack sleep wait-aws-stack-creation sleep sleep run-mongo-aws sleep run-scrapping-aws wait-scrapping-to-finish-aws delete-aws-stack
+create-aws-stack-and-run: create-aws-stack sleep wait-aws-stack-creation sleep sleep sleep sleep run-mongo-aws sleep run-scrapping-aws wait-scrapping-to-finish-aws delete-aws-stack
