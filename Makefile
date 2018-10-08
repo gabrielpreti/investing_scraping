@@ -125,6 +125,7 @@ delete-aws-stack:
 
 
 sleep:
+	date
 	sleep 30s
 
 create-aws-stack-and-run: create-aws-stack sleep wait-aws-stack-creation sleep sleep sleep sleep run-mongo-aws sleep run-scrapping-aws wait-scrapping-to-finish-aws delete-aws-stack
