@@ -1,0 +1,6 @@
+aws cloudformation validate-template --template-body file:///git_repos/github/investing_scraping/cloudformation/newtworking.yaml
+aws cloudformation create-stack --stack-name investing-scrapping-network --template-body file:///git_repos/github/investing_scraping/cloudformation/newtworking.yaml --parameters ParameterKey=VpcCidrPrefix,ParameterValue=10.0
+aws cloudformation wait stack-create-complete --stack-name investing-scrapping-network
+aws cloudformation list-exports --query 'Exports[][Name,Value]' --output table
+
+#aws cloudformation delete-stack --stack-name investing-scrapping-network

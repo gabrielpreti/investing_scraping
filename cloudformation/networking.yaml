@@ -22,6 +22,7 @@ Parameters:
     Type: String
     Default: pytradejobs
 
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -216,31 +217,47 @@ Outputs:
   VPCId:
     Description: "VPC id"
     Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPCId
 
   IGWId:
     Description: "Internet Gateway id"
     Value: !Ref IGW
+    Export:
+      Name: !Sub ${AWS::StackName}-IGWId
 
   RouteTableId:
     Description: "Route Table id"
     Value: !Ref RouteTable
+    Export:
+      Name: !Sub ${AWS::StackName}-RouteTableId
 
-  Subnet:
+  SubnetId:
     Description: "Subnet id"
     Value: !Ref Subnet
+    Export:
+      Name: !Sub ${AWS::StackName}-SubnetId
 
-  Nacl:
+  NaclId:
     Description: "NACL id"
     Value: !Ref Nacl
+    Export:
+      Name: !Sub ${AWS::StackName}-NaclId
 
-  SshAccessSecurityGroup:
+  SshAccessSecurityGroupId:
     Description: "Allow SSH access security group id"
     Value: !Ref SshAccessSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-SshAccessSecurityGroupId
 
-  DockerDaemonAccessSecurityGroup:
+  DockerDaemonAccessSecurityGroupId:
     Description: "Allow docker daemon access security group id"
     Value: !Ref DockerDaemonAccessSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-DockerDaemonAccessSecurityGroupId
 
   MongoAccessSecurityGroup:
     Description: "Allow MongoDB access security group id"
     Value: !Ref MongoAccessSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-MongoAccessSecurityGroupId

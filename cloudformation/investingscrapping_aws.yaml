@@ -1,26 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Investing Scrapping"
+
 Parameters:
-
-  Subnet:
-    Description: "Subnet ID"
-    Type: AWS::EC2::Subnet::Id
-    Default: subnet-00fb025b8c729fd92
-
-  SshAccessSecurityGroup:
-    Description: "SSH access security group id"
-    Type: AWS::EC2::SecurityGroup::Id
-    Default: sg-097f08c0cc8644813
-
-  DockerDaemonAccessSecurityGroup:
-    Description: "Allow docker daemon access security group"
-    Type: AWS::EC2::SecurityGroup::Id
-    Default: sg-0c163b00535670e01
-
-  MongoAccessSecurityGroup:
-    Description: "Allow mongo db acess security group"
-    Type: AWS::EC2::SecurityGroup::Id
-    Default: sg-0c5cea5754863f723
 
   ProjectName:
       Description: "Please enter the name of the project"
@@ -60,6 +41,10 @@ Parameters:
     AllowedValues: ["Spot", "On-demand"]
     Default: "Spot"
 
+  NetworkStack:
+    Type: "String"
+    Description: "Network stack to apply to."
+
 Conditions:
   ShouldUseEBSVolume: !Equals [!Ref NeedsEBSVolume, "true"]
   ShouldCreateNewEBSVolume: !And
@@ -77,12 +62,13 @@ Resources:
     Properties:
       InstanceType: !Ref Ec2InstanceType
       SecurityGroupIds:
-        - !Ref SshAccessSecurityGroup
-        - !Ref DockerDaemonAccessSecurityGroup
-        - !Ref MongoAccessSecurityGroup
+        - Fn::ImportValue: !Sub "${NetworkStack}-SshAccessSecurityGroupId"
+        - Fn::ImportValue: !Sub "${NetworkStack}-DockerDaemonAccessSecurityGroupId"
+        - Fn::ImportValue: !Sub "${NetworkStack}-MongoAccessSecurityGroupId"
       KeyName: !Ref EC2KeyName
       ImageId: !Ref ImageId
-      SubnetId: !Ref Subnet
+      SubnetId:
+        Fn::ImportValue: !Sub "${NetworkStack}-SubnetId"
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -97,6 +83,11 @@ Resources:
             mount /dev/sdh /mnt/ebs_data/
           fi
 
+          DOCKER_HOST=tcp://localhost:2375 docker run --name stock_data_db -v /mnt/ebs_data/mongodata:/data/db -p 27017:27017 -d mongo:4-xenial
+          DOCKER_HOST=tcp://localhost:2375 docker run -d --name investing_scrapping_container --link stock_data_db:stock_data_db  gabrielpreti/investing_scrapping python investing_data_collector.py --mongohost=stock_data_db
+          DOCKER_HOST=tcp://localhost:2375  docker wait investing_scrapping_container
+          sudo shutdown -h now
+
 ######EC2 spot instance
   EC2SpotInstance:
     Type: AWS::EC2::Instance
@@ -108,10 +99,11 @@ Resources:
         LaunchTemplateId: !Ref EC2LaunchTemplate
         Version: 1
       SecurityGroupIds:
-      - !Ref SshAccessSecurityGroup
-      - !Ref DockerDaemonAccessSecurityGroup
-      - !Ref MongoAccessSecurityGroup
-      SubnetId: !Ref Subnet
+        - Fn::ImportValue: !Sub "${NetworkStack}-SshAccessSecurityGroupId"
+        - Fn::ImportValue: !Sub "${NetworkStack}-DockerDaemonAccessSecurityGroupId"
+        - Fn::ImportValue: !Sub "${NetworkStack}-MongoAccessSecurityGroupId"
+      SubnetId:
+        Fn::ImportValue: !Sub "${NetworkStack}-SubnetId"
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -125,6 +117,11 @@ Resources:
             mkdir /mnt/ebs_data
             mount /dev/sdh /mnt/ebs_data/
           fi
+
+          DOCKER_HOST=tcp://localhost:2375 docker run --name stock_data_db -v /mnt/ebs_data/mongodata:/data/db -p 27017:27017 -d mongo:4-xenial
+          DOCKER_HOST=tcp://localhost:2375 docker run -d --name investing_scrapping_container --link stock_data_db:stock_data_db  gabrielpreti/investing_scrapping python investing_data_collector.py --mongohost=stock_data_db
+          DOCKER_HOST=tcp://localhost:2375  docker wait investing_scrapping_container
+          sudo shutdown -h now
 
   EC2LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -156,6 +153,10 @@ Resources:
       Device: "/dev/sdh"
 
 Outputs:
+
+  Ec2InstanceId:
+    Description: "Id of the EC2 instance created"
+    Value: !If [UseSpotInstance, !Ref EC2SpotInstance, !Ref EC2OnDemandInstance]
 
   Ec2InstancePublicIp:
     Description: "Public IP address of the EC2 instance created"
