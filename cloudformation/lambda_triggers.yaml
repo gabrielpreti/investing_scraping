@@ -49,7 +49,7 @@ Resources:
     Type: "AWS::Events::Rule"
     Properties:
       Description: "ScheduledRule"
-      ScheduleExpression: "cron(20 20 * * ? *)"
+      ScheduleExpression: "cron(00 22 * * ? *)"
       State: "ENABLED"
       Targets:
         - Arn: !GetAtt ["LambdaInvestingExecution","Arn"]
