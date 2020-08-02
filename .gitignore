@@ -1,2 +1,5 @@
 .idea/
 cloudformation/lambda.zip
+*.json
+*.tar.gz
+__pycache__/

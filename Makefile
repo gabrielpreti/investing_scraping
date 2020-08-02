@@ -98,7 +98,7 @@ ssh-mongo-aws: configure-docker-to-aws-istance ssh-mongo
 
 
 create-aws-stack:
-	aws cloudformation create-stack --stack-name=${STACK_NAME} --template-body=file://./investingscrapping_aws.yaml --parameters ParameterKey=ProjectName,ParameterValue='Investing Scrapping' ParameterKey=NeedsEBSVolume,ParameterValue=true ParameterKey=EC2MarketType,ParameterValue='On-demand' ParameterKey=EC2KeyName,ParameterValue=pytradejobs ParameterKey=EBSVolumeId,ParameterValue='vol-0720dcb52f88d1c3e'  ParameterKey=Subnet,ParameterValue='subnet-02990d206a07321c8'  ParameterKey=SshAccessSecurityGroup,ParameterValue='sg-0d71b453efafcfcae'  ParameterKey=DockerDaemonAccessSecurityGroup,ParameterValue='sg-0b4d956f3b80c1362'  ParameterKey=MongoAccessSecurityGroup,ParameterValue='sg-0d028f9c38955e9e0'
+	aws cloudformation create-stack --stack-name=${STACK_NAME} --template-body=file://cloudformation/investingscrapping_aws.yaml --parameters ParameterKey=ProjectName,ParameterValue='Investing Scrapping' ParameterKey=NeedsEBSVolume,ParameterValue=true ParameterKey=EC2MarketType,ParameterValue='On-demand' ParameterKey=EC2KeyName,ParameterValue=pytradejobs ParameterKey=EBSVolumeId,ParameterValue='vol-0720dcb52f88d1c3e'  ParameterKey=NetworkStack,ParameterValue='InvestingScrappingNetwork'
 
 wait-aws-stack-creation:
 	set -e ;\

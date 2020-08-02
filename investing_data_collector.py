@@ -6,6 +6,7 @@ import time
 from pymongo import MongoClient
 import getopt
 import sys
+import datetime
 
 MONGO_HOST = None
 if __name__ == "__main__":
@@ -38,3 +39,38 @@ for stock_link in stock_links_list:
     print(data)
     investing_data_collection.insert_one(data)
     time.sleep(30)
+
+
+
+# import json
+# MONGO_HOST = '54.159.207.238'
+# mongo_client = MongoClient(MONGO_HOST, 27017)
+# mongo_database = mongo_client.stoch_data_database
+# investing_data_collection = mongo_database.investing_collection
+# cursor = investing_data_collection.find()
+# size = investing_data_collection.count_documents({})
+# # docs = list(cursor)
+# data_file_name = 'investing_data_collection-%s.json' % datetime.datetime.now().strftime('%Y-%m-%d')
+# with open(data_file_name, "w") as file:
+#     file.write('[')
+#     for i, document in enumerate(cursor, 1):
+#         if '_id' in list(document.keys()):
+#             del document['_id']
+#         file.write(json.dumps(document, default=str))
+#         file.write("\n")
+#         if i != size:
+#             file.write(',')
+#     file.write(']')
+#
+# docs = None
+# with open(data_file_name, "r") as file:
+#     docs = json.load(file)
+# len(docs)
+#
+# i = 1
+# while i<200:
+#     doc = docs[-1*i]
+#     if 'General-Information' in doc.keys() and 'code' in doc['General-Information'].keys() and  doc['General-Information']['code'] == 'RAIL3':
+#         print(doc)
+#         break
+#     i = i+1
